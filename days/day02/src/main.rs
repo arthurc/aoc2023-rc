@@ -21,7 +21,6 @@ mod part1 {
 
         game_iter(s)
             .filter(|g| g.is_possible(&config))
-            .filter(|g| g.is_possible(&config))
             .map(|g| g.id)
             .sum()
     }
