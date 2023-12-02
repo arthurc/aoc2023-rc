@@ -4,17 +4,18 @@ use std::str::FromStr;
 const INPUT: &'static str = include_str!("../input.txt");
 
 fn main() {
+    println!("The sum of the IDs of those games: {}", run(INPUT))
+}
+
+fn run(s: &str) -> usize {
     let config = Configuration::new(12, 13, 14);
 
-    let id_sum: usize = INPUT
-        .lines()
+    s.lines()
         .flat_map(|s| Game::from_str(s).into_iter())
         .filter(|g| g.is_possible(&config))
         .filter(|g| g.is_possible(&config))
         .map(|g| g.id)
-        .sum();
-
-    println!("The sum of the IDs of those games: {}", id_sum)
+        .sum()
 }
 
 #[derive(PartialEq, Debug)]
@@ -129,5 +130,10 @@ mod tests {
 
         assert!(!game.is_possible(&Configuration::new(9, 0, 50)));
         assert!(!game.is_possible(&Configuration::new(0, 0, 0)));
+    }
+
+    #[test]
+    fn test_answer() {
+        assert_eq!(run(INPUT), 2406);
     }
 }
