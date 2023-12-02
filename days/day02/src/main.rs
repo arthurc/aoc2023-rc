@@ -1,3 +1,4 @@
+use aoc2023::prelude::*;
 use std::str::FromStr;
 
 const INPUT: &'static str = include_str!("../input.txt");
@@ -14,15 +15,6 @@ fn main() {
         .sum();
 
     println!("The sum of the IDs of those games: {}", id_sum)
-}
-
-fn extract_number(s: &str) -> u32 {
-    s.chars()
-        .flat_map(|c| c.to_digit(10).into_iter())
-        .rev()
-        .enumerate()
-        .map(|(i, n)| 10u32.pow(i as u32) * n)
-        .sum()
 }
 
 #[derive(PartialEq, Debug)]
