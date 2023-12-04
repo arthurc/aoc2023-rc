@@ -7,6 +7,10 @@ pub fn extract_number(s: &str) -> u32 {
         .sum()
 }
 
+pub fn normalized_lines(s: &str) -> impl Iterator<Item = &str> {
+    s.lines().map(|s| s.trim()).filter(|s| !s.is_empty())
+}
+
 pub mod prelude {
     pub use super::extract_number;
 }

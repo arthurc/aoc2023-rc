@@ -23,3 +23,13 @@ dependencies = [
 [[package]]
 name = "day03"
 version = "0.1.0"
+dependencies = [
+ "aoc2023",
+]
+
+[[package]]
+name = "day04"
+version = "0.1.0"
+dependencies = [
+ "aoc2023",
+]

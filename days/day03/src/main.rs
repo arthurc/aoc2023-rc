@@ -1,3 +1,5 @@
+use aoc2023::normalized_lines;
+
 const INPUT: &'static str = include_str!("../input.txt");
 
 fn main() {
@@ -196,10 +198,6 @@ enum Token {
     Number(u32),
     Space,
     Symbol(char),
-}
-
-fn normalized_lines(s: &str) -> impl Iterator<Item = &str> {
-    s.lines().map(|s| s.trim()).filter(|s| !s.is_empty())
 }
 
 #[cfg(test)]
