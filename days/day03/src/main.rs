@@ -8,22 +8,27 @@ fn main() {
 }
 
 fn find_part_numbers(s: &str) -> Vec<u32> {
+    let mut part_numbers = Vec::new();
+    for_each_part(s, |n, cs| {
+        if !cs.is_empty() {
+            part_numbers.push(n)
+        }
+    });
+    part_numbers
+}
+
+fn for_each_part(s: &str, mut f: impl FnMut(u32, &Vec<char>) -> ()) {
     let line_tokens = normalized_lines(s)
         .map(|l| LineParser::new(l).collect::<Vec<_>>())
         .collect::<Vec<_>>();
 
-    let mut numbers = Vec::new();
     for (l, ts) in line_tokens.iter().enumerate() {
         for (i, ParsedToken { ref token, .. }) in ts.iter().enumerate() {
             if let Token::Number(n) = token {
-                if !adjacent_symbols(i, l, &line_tokens).is_empty() {
-                    numbers.push(*n);
-                }
+                f(*n, &adjacent_symbols(i, l, &line_tokens));
             }
         }
     }
-
-    numbers
 }
 
 fn adjacent_symbols(
