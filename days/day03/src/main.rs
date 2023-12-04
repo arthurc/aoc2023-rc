@@ -2,82 +2,113 @@ const INPUT: &'static str = include_str!("../input.txt");
 
 fn main() {
     println!(
-        "The sum of all of the part numbers in the engine schematic: {:?}",
+        "The sum of all of the part numbers in the engine schematic: {}",
         find_part_numbers(INPUT).iter().sum::<u32>()
     );
+
+    println!(
+        "The sum of all of the gear ratios in your engine schematic: {}",
+        find_gear_parts(INPUT).iter().sum::<u32>()
+    )
 }
 
 fn find_part_numbers(s: &str) -> Vec<u32> {
     let mut part_numbers = Vec::new();
-    for_each_part(s, |n, cs| {
-        if !cs.is_empty() {
-            part_numbers.push(n)
+    for_each_token(s, |row, col, tokens_per_line| {
+        let ParsedToken { ref token, .. } = tokens_per_line[row][col];
+
+        if let Token::Number(n) = token {
+            if !adjacent_tokens(row, col, &tokens_per_line, |t| {
+                if matches!(t, Token::Symbol(_)) {
+                    Some(())
+                } else {
+                    None
+                }
+            })
+            .is_empty()
+            {
+                part_numbers.push(*n);
+            }
         }
     });
     part_numbers
 }
 
-fn for_each_part(s: &str, mut f: impl FnMut(u32, &Vec<char>) -> ()) {
+fn find_gear_parts(s: &str) -> Vec<u32> {
+    let mut part_numbers = Vec::new();
+    for_each_token(s, |row, col, tokens_per_line| {
+        let ParsedToken { ref token, .. } = tokens_per_line[row][col];
+
+        if let Token::Symbol('*') = token {
+            let parts = adjacent_tokens(row, col, &tokens_per_line, |t| {
+                if let Token::Number(n) = t {
+                    Some(*n)
+                } else {
+                    None
+                }
+            });
+
+            if parts.len() == 2 {
+                part_numbers.push(parts[0] * parts[1]);
+            }
+        }
+    });
+    part_numbers
+}
+
+fn for_each_token(s: &str, mut f: impl FnMut(usize, usize, &Vec<Vec<ParsedToken>>) -> ()) {
     let line_tokens = normalized_lines(s)
         .map(|l| LineParser::new(l).collect::<Vec<_>>())
         .collect::<Vec<_>>();
 
     for (l, ts) in line_tokens.iter().enumerate() {
-        for (i, ParsedToken { ref token, .. }) in ts.iter().enumerate() {
-            if let Token::Number(n) = token {
-                f(*n, &adjacent_symbols(i, l, &line_tokens));
-            }
+        for (i, _) in ts.iter().enumerate() {
+            f(l, i, &line_tokens);
         }
     }
 }
 
-fn adjacent_symbols(
-    current_token_index: usize,
-    current_line_index: usize,
+fn adjacent_tokens<T>(
+    row: usize,
+    col: usize,
     tokens_per_line: &Vec<Vec<ParsedToken>>,
-) -> Vec<char> {
-    let current_line_tokens = &tokens_per_line[current_line_index];
-    let current_token = &current_line_tokens[current_token_index];
+    mut f: impl FnMut(&Token) -> Option<T>,
+) -> Vec<T> {
+    let current_line_tokens = &tokens_per_line[row];
+    let current_token = &current_line_tokens[col];
     let rstart = 1.max(current_token.start) - 1;
     let rend = current_token.start + current_token.len;
-    let mut found_symbols = Vec::new();
+    let mut result = Vec::new();
 
     // Above
-    if current_line_index > 0 {
-        tokens_per_line[current_line_index - 1]
+    if row > 0 {
+        tokens_per_line[row - 1]
             .iter()
-            .filter_map(|pt| match pt.token {
-                Token::Symbol(c) if pt.contains(rstart, rend) => Some(c),
-                _ => None,
-            })
-            .for_each(|c| found_symbols.push(c));
+            .filter(|pt| pt.contains(rstart, rend))
+            .flat_map(|pt| f(&pt.token))
+            .for_each(|c| result.push(c));
     }
 
     // Same line
-    if current_token_index > 0 {
-        if let Token::Symbol(c) = current_line_tokens[current_token_index - 1].token {
-            found_symbols.push(c);
+    if col > 0 {
+        if let Some(t) = f(&current_line_tokens[col - 1].token) {
+            result.push(t);
         }
     }
-    if let Some(Token::Symbol(c)) = current_line_tokens
-        .get(current_token_index + 1)
-        .map(|pt| &pt.token)
-    {
-        found_symbols.push(*c);
+    if let Some(t) = current_line_tokens.get(col + 1).and_then(|pt| f(&pt.token)) {
+        result.push(t);
     }
 
     // Below
-    if let Some(below) = tokens_per_line.get(current_line_index + 1) {
+    if let Some(below) = tokens_per_line.get(row + 1) {
         below
             .iter()
-            .filter_map(|pt| match pt.token {
-                Token::Symbol(c) if pt.contains(rstart, rend) => Some(c),
-                _ => None,
-            })
-            .for_each(|c| found_symbols.push(c));
+            .filter(|pt| pt.contains(rstart, rend))
+            .flat_map(|pt| f(&pt.token))
+            .for_each(|c| result.push(c));
     }
 
-    found_symbols
+    result
 }
 
 struct LineParser<'a> {
@@ -232,129 +263,38 @@ mod tests {
 
     #[test]
     fn test_find_part_numbers_above() {
-        assert_eq!(
-            find_part_numbers(
-                r#"
-                "#
-            ),
-            vec![]
-        );
-        assert_eq!(
-            find_part_numbers(
-                r#"
-                1"#
-            ),
-            vec![]
-        );
-        assert_eq!(
-            find_part_numbers(
-                r#"
-                @..
-                .1."#
-            ),
-            vec![1]
-        );
-        assert_eq!(
-            find_part_numbers(
-                r#"
-                .@.
-                .1."#
-            ),
-            vec![1]
-        );
-        assert_eq!(
-            find_part_numbers(
-                r#"
-                ..@
-                .1."#
-            ),
-            vec![1]
-        );
-        assert_eq!(
-            find_part_numbers(
-                r#"
-                ...@
-                .1.."#
-            ),
-            vec![]
-        );
+        assert_eq!(find_part_numbers("\n"), vec![]);
+        assert_eq!(find_part_numbers("\n1"), vec![]);
+        assert_eq!(find_part_numbers("@..\n.1."), vec![1]);
+        assert_eq!(find_part_numbers(".@.\n.1."), vec![1]);
+        assert_eq!(find_part_numbers("..@\n.1."), vec![1]);
+        assert_eq!(find_part_numbers("...@\n.1.."), vec![]);
     }
 
     #[test]
     fn test_find_part_numbers_below() {
-        assert_eq!(
-            find_part_numbers(
-                r#"
-                "#
-            ),
-            vec![]
-        );
-        assert_eq!(
-            find_part_numbers(
-                r#"
-                1
-                "#
-            ),
-            vec![]
-        );
-        assert_eq!(
-            find_part_numbers(
-                r#"
-                .1.
-                @..
-                "#
-            ),
-            vec![1]
-        );
-        assert_eq!(
-            find_part_numbers(
-                r#"
-                .1.
-                .@.
-                "#
-            ),
-            vec![1]
-        );
-        assert_eq!(
-            find_part_numbers(
-                r#"
-                .1.
-                ..@
-                "#
-            ),
-            vec![1]
-        );
-        assert_eq!(
-            find_part_numbers(
-                r#"
-                .1..
-                ...@
-                "#
-            ),
-            vec![]
-        );
-        assert_eq!(
-            find_part_numbers(
-                r#"
-                ..1
-                *..
-                "#
-            ),
-            vec![]
-        );
-        assert_eq!(
-            find_part_numbers(
-                r#"
-                9..
-                ..*
-                "#
-            ),
-            vec![]
-        );
+        assert_eq!(find_part_numbers("\n"), vec![]);
+        assert_eq!(find_part_numbers("1\n"), vec![]);
+        assert_eq!(find_part_numbers(".1.\n@.."), vec![1]);
+        assert_eq!(find_part_numbers(".1.\n.@."), vec![1]);
+        assert_eq!(find_part_numbers(".1.\n..@"), vec![1]);
+        assert_eq!(find_part_numbers(".1..\n...@"), vec![]);
+        assert_eq!(find_part_numbers("..1\n*.."), vec![]);
+        assert_eq!(find_part_numbers("9..\n..*"), vec![]);
+    }
+
+    #[test]
+    fn test_find_gear_parts_example() {
+        assert_eq!(find_gear_parts(EXAMPLE), vec![16345, 451490]);
     }
 
     #[test]
     fn test_result_part1() {
         assert_eq!(find_part_numbers(INPUT).iter().sum::<u32>(), 528799);
+    }
+
+    #[test]
+    fn test_result_part2() {
+        assert_eq!(find_gear_parts(INPUT).iter().sum::<u32>(), 84907174);
     }
 }
